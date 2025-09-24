@@ -1,9 +1,17 @@
-import { Category, Task } from "../types/user";
+import { Category, Priority, Task } from "../types/user";
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AddTaskButton, Container, StyledInput } from "../styles";
 import { AddTaskRounded, CancelRounded } from "@mui/icons-material";
-import { IconButton, InputAdornment, Tooltip } from "@mui/material";
+import {
+  IconButton,
+  InputAdornment,
+  Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
 import { DESCRIPTION_MAX_LENGTH, TASK_NAME_MAX_LENGTH } from "../constants";
 import { ColorPicker, TopBar, CustomEmojiPicker } from "../components";
 import { UserContext } from "../contexts/UserContext";
@@ -14,6 +22,7 @@ import { ColorPalette } from "../theme/themeConfig";
 import InputThemeProvider from "../contexts/InputThemeProvider";
 import { CategorySelect } from "../components/CategorySelect";
 import { useToasterStore } from "react-hot-toast";
+import { priorities } from "../constants/priorityConstants";
 
 const AddTask = () => {
   const { user, setUser } = useContext(UserContext);
@@ -27,6 +36,7 @@ const AddTask = () => {
     "sessionStorage",
   );
   const [deadline, setDeadline] = useStorageState<string>("", "deadline", "sessionStorage");
+  const [priority, setPriority] = useStorageState<Priority>("None", "priority", "sessionStorage");
   const [nameError, setNameError] = useState<string>("");
   const [descriptionError, setDescriptionError] = useState<string>("");
   const [selectedCategories, setSelectedCategories] = useStorageState<Category[]>(
@@ -34,16 +44,13 @@ const AddTask = () => {
     "categories",
     "sessionStorage",
   );
-
   const [isDeadlineFocused, setIsDeadlineFocused] = useState<boolean>(false);
 
   const n = useNavigate();
   const { toasts } = useToasterStore();
-
   useEffect(() => {
     document.title = "Todo App - Add Task";
   }, []);
-
   useEffect(() => {
     if (name.length > TASK_NAME_MAX_LENGTH) {
       setNameError(`Name should be less than or equal to ${TASK_NAME_MAX_LENGTH} characters`);
@@ -58,7 +65,6 @@ const AddTask = () => {
       setDescriptionError("");
     }
   }, [description.length, name.length]);
-
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newName = event.target.value;
     setName(newName);
@@ -68,7 +74,6 @@ const AddTask = () => {
       setNameError("");
     }
   };
-
   const handleDescriptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newDescription = event.target.value;
     setDescription(newDescription);
@@ -80,11 +85,9 @@ const AddTask = () => {
       setDescriptionError("");
     }
   };
-
   const handleDeadlineChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setDeadline(event.target.value);
   };
-
   const handleAddTask = () => {
     if (name === "") {
       showToast("Task name is required.", {
@@ -110,14 +113,13 @@ const AddTask = () => {
       color,
       date: new Date(),
       deadline: deadline !== "" ? new Date(deadline) : undefined,
+      priority: priority !== "None" ? priority : undefined,
       category: selectedCategories ? selectedCategories : [],
     };
-
     setUser((prevUser) => ({
       ...prevUser,
       tasks: [...prevUser.tasks, newTask],
     }));
-
     n("/");
 
     showToast(
@@ -128,11 +130,17 @@ const AddTask = () => {
         icon: <AddTaskRounded />,
       },
     );
-
-    const itemsToRemove = ["name", "color", "description", "emoji", "deadline", "categories"];
+    const itemsToRemove = [
+      "name",
+      "color",
+      "description",
+      "emoji",
+      "deadline",
+      "categories",
+      "priority",
+    ];
     itemsToRemove.map((item) => sessionStorage.removeItem(item));
   };
-
   return (
     <>
       <TopBar title="Add New Task" />
@@ -211,6 +219,21 @@ const AddTask = () => {
               },
             }}
           />
+          <FormControl sx={{ m: 1, width: 400 }}>
+            <InputLabel>Priority</InputLabel>
+            <Select
+              value={priority}
+              label="Priority"
+              onChange={(e) => setPriority(e.target.value as Priority)}
+              sx={{ borderRadius: "16px" }}
+            >
+              {priorities.map((p) => (
+                <MenuItem key={p.level} value={p.level}>
+                  {p.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           {user.settings.enableCategories !== undefined && user.settings.enableCategories && (
             <div style={{ marginBottom: "14px" }}>

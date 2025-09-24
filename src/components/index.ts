@@ -15,3 +15,5 @@ export { CustomDialogTitle } from "./DialogTitle";
 export { LogoutDialog } from "./LogoutDialog";
 export { TabPanel, TabGroupProvider } from "./TabPanel";
 export { TaskItem } from "./tasks/TaskItem";
+export { PriorityBadge } from "./PriorityBadge";
+export { FilterBar } from "./FilterBar";

@@ -1,4 +1,4 @@
-import { useContext, useMemo, lazy, Suspense, useEffect } from "react";
+import { useContext, useMemo, lazy, Suspense, useEffect, useState } from "react";
 import {
   AddButton,
   GreetingHeader,
@@ -12,7 +12,6 @@ import {
   TasksCount,
   TasksCountContainer,
 } from "../styles";
-
 import { Emoji } from "emoji-picker-react";
 import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -22,14 +21,15 @@ import { useResponsiveDisplay } from "../hooks/useResponsiveDisplay";
 import { useNavigate } from "react-router-dom";
 import { AnimatedGreeting } from "../components/AnimatedGreeting";
 import { showToast } from "../utils";
+import { FilterBar, FilterState } from "../components/FilterBar";
 
 const TasksList = lazy(() =>
   import("../components/tasks/TasksList").then((module) => ({ default: module.TasksList })),
 );
-
 const Home = () => {
   const { user, setUser } = useContext(UserContext);
   const { tasks, emojisStyle, settings, name } = user;
+  const [activeFilter, setActiveFilter] = useState<FilterState>({ type: "all" });
 
   const isOnline = useOnlineStatus();
   const n = useNavigate();
@@ -38,7 +38,6 @@ const Home = () => {
   useEffect(() => {
     document.title = "Todo App";
   }, []);
-
   // Calculate these values only when tasks change
   const taskStats = useMemo(() => {
     const completedCount = tasks.filter((task) => task.done).length;
@@ -62,7 +61,6 @@ const Home = () => {
       tasksDueTodayNames: taskNamesDueToday,
     };
   }, [tasks]);
-
   // Memoize time-based greeting
   const timeGreeting = useMemo(() => {
     const currentHour = new Date().getHours();
@@ -74,7 +72,6 @@ const Home = () => {
       return "Good evening";
     }
   }, []);
-
   // Memoize task completion text
   const taskCompletionText = useMemo(() => {
     const percentage = taskStats.completedTaskPercentage;
@@ -93,7 +90,6 @@ const Home = () => {
         return "You're just getting started.";
     }
   }, [taskStats.completedTaskPercentage]);
-
   const updateShowProgressBar = (value: boolean) => {
     setUser((prevUser) => ({
       ...prevUser,
@@ -194,6 +190,9 @@ const Home = () => {
           </TasksCount>
         </TasksCountContainer>
       )}
+
+      {tasks.length > 0 && <FilterBar onFilterChange={setActiveFilter} />}
+
       <Suspense
         fallback={
           <Box display="flex" justifyContent="center" alignItems="center">
@@ -201,7 +200,7 @@ const Home = () => {
           </Box>
         }
       >
-        <TasksList />
+        <TasksList activeFilter={activeFilter} />
       </Suspense>
       {!isMobile && (
         <Tooltip title={tasks.length > 0 ? "Add New Task" : "Add Task"} placement="left">

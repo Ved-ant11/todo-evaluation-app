@@ -1,11 +1,12 @@
 import type { EmojiStyle } from "emoji-picker-react";
-
 /**
  * Represents a universally unique identifier.
  */
 export type UUID = ReturnType<typeof crypto.randomUUID>;
 
 export type DarkModeOptions = "system" | "auto" | "light" | "dark";
+
+export type Priority = "None" | "Low" | "Medium" | "High" | "Critical";
 
 /**
  * Represents a user in the application.
@@ -51,6 +52,7 @@ export interface Task {
   date: Date;
   deadline?: Date;
   category?: Category[];
+  priority?: Priority;
   lastSave?: Date;
   sharedBy?: string;
   /**

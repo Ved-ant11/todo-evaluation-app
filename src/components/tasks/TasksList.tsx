@@ -60,6 +60,8 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import DisabledThemeProvider from "../../contexts/DisabledThemeProvider";
+import { FilterState } from "../FilterBar";
+import { isToday, isThisWeek, isInDateRange } from "../../utils/dateUtils";
 
 const TaskMenuButton = memo(
   ({ task, onClick }: { task: Task; onClick: (event: React.MouseEvent<HTMLElement>) => void }) => (
@@ -76,11 +78,10 @@ const TaskMenuButton = memo(
     </IconButton>
   ),
 );
-
 /**
  * Component to display a list of tasks.
  */
-export const TasksList: React.FC = () => {
+export const TasksList: React.FC<{ activeFilter: FilterState }> = ({ activeFilter }) => {
   const { user, setUser } = useContext(UserContext);
   const {
     selectedTaskId,
@@ -122,7 +123,6 @@ export const TasksList: React.FC = () => {
   const isMobile = useResponsiveDisplay();
   const theme = useTheme();
   const { toasts } = useToasterStore();
-
   const listFormat = useMemo(
     () =>
       new Intl.ListFormat("en-US", {
@@ -131,11 +131,9 @@ export const TasksList: React.FC = () => {
       }),
     [],
   );
-
   // Handler for clicking the more options button in a task
   const handleClick = (event: React.MouseEvent<HTMLElement>, taskId: UUID) => {
     const target = event.target as HTMLElement;
-
     // if clicking inside a task link, show native context menu and skip custom menu.
     if (target.closest("#task-description-link")) {
       return;
@@ -144,17 +142,14 @@ export const TasksList: React.FC = () => {
     event.preventDefault();
     setAnchorEl(event.currentTarget);
     setSelectedTaskId(taskId);
-
     setAnchorPosition({
       top: event.clientY,
       left: event.clientX,
     });
-
     // if (!isMobile && !expandedTasks.includes(taskId)) {
     //   toggleShowMore(taskId);
     // }
   };
-
   // focus search input on ctrl + /
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -167,12 +162,37 @@ export const TasksList: React.FC = () => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
   const reorderTasks = useCallback(
     (tasks: Task[]): Task[] => {
+      let filteredTasks = tasks;
+
+      // Date filtering logic
+      if (activeFilter.type !== "all") {
+        filteredTasks = filteredTasks.filter((task) => {
+          const taskDate = new Date(task.date);
+          switch (activeFilter.type) {
+            case "today":
+              return isToday(taskDate);
+            case "week":
+              return isThisWeek(taskDate);
+            case "custom":
+              if (activeFilter.startDate && activeFilter.endDate) {
+                return isInDateRange(
+                  taskDate,
+                  new Date(activeFilter.startDate),
+                  new Date(activeFilter.endDate),
+                );
+              }
+              return true;
+            default:
+              return true;
+          }
+        });
+      }
+
       // Separate tasks into pinned and unpinned
-      let pinnedTasks = tasks.filter((task) => task.pinned);
-      let unpinnedTasks = tasks.filter((task) => !task.pinned);
+      let pinnedTasks = filteredTasks.filter((task) => task.pinned);
+      let unpinnedTasks = filteredTasks.filter((task) => !task.pinned);
 
       // Filter tasks based on the selected category
       if (selectedCatId !== undefined) {
@@ -212,7 +232,6 @@ export const TasksList: React.FC = () => {
               if (a.position != null && b.position == null) return -1;
               return new Date(a.date).getTime() - new Date(b.date).getTime();
             });
-
           default:
             return tasks;
         }
@@ -220,7 +239,6 @@ export const TasksList: React.FC = () => {
 
       unpinnedTasks = sortTasks(unpinnedTasks);
       pinnedTasks = sortTasks(pinnedTasks);
-
       // Move done tasks to bottom if the setting is enabled
       if (user.settings?.doneToBottom) {
         const doneTasks = unpinnedTasks.filter((task) => task.done);
@@ -230,11 +248,10 @@ export const TasksList: React.FC = () => {
 
       return [...pinnedTasks, ...unpinnedTasks];
     },
-    [search, selectedCatId, user.settings?.doneToBottom, sortOption],
+    [search, selectedCatId, user.settings?.doneToBottom, sortOption, activeFilter],
   );
 
   const orderedTasks = useMemo(() => reorderTasks(user.tasks), [user.tasks, reorderTasks]);
-
   const confirmDeleteTask = () => {
     if (!selectedTaskId) {
       return;
@@ -260,12 +277,10 @@ export const TasksList: React.FC = () => {
       setTaskToDelete(task || null);
     }
   }, [selectedTaskId, deleteDialogOpen, user.tasks]);
-
   const cancelDeleteTask = () => {
     // Cancels the delete task operation
     setDeleteDialogOpen(false);
   };
-
   const handleMarkSelectedAsDone = () => {
     setUser((prevUser) => ({
       ...prevUser,
@@ -282,7 +297,6 @@ export const TasksList: React.FC = () => {
   };
 
   const handleDeleteSelected = () => setDeleteSelectedOpen(true);
-
   useEffect(() => {
     const tasks: Task[] = orderedTasks;
     const uniqueCategories: Category[] = [];
@@ -321,7 +335,6 @@ export const TasksList: React.FC = () => {
     setCategories(uniqueCategories);
     setCategoryCounts(counts);
   }, [user.tasks, search, setCategories, setCategoryCounts, orderedTasks]);
-
   const checkOverdueTasks = useCallback(
     (tasks: Task[]) => {
       if (location.pathname === "/share") {
@@ -358,12 +371,10 @@ export const TasksList: React.FC = () => {
     },
     [listFormat, toasts, user.settings.enableGlow],
   );
-
   useEffect(() => {
     checkOverdueTasks(user.tasks);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   const dndKitSensors = useSensors(
     useSensor(MouseSensor),
     useSensor(TouchSensor, {
@@ -373,14 +384,12 @@ export const TasksList: React.FC = () => {
       },
     }),
   );
-
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = orderedTasks.findIndex((task) => task.id === active.id);
     const newIndex = orderedTasks.findIndex((task) => task.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-
     // calculate new positions for all tasks in the new order
     const newOrdered = arrayMove(orderedTasks, oldIndex, newIndex);
     // assign position as index
@@ -396,11 +405,9 @@ export const TasksList: React.FC = () => {
       setActiveDragId(null);
     });
   };
-
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(event.active.id as string);
   };
-
   return (
     <>
       <TaskMenu />

@@ -4,8 +4,12 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  FormControl,
   IconButton,
   InputAdornment,
+  InputLabel,
+  MenuItem,
+  Select,
   TextField,
   TextFieldProps,
   Tooltip,
@@ -15,11 +19,12 @@ import { ColorPicker, CustomDialogTitle, CustomEmojiPicker } from "..";
 import { DESCRIPTION_MAX_LENGTH, TASK_NAME_MAX_LENGTH } from "../../constants";
 import { UserContext } from "../../contexts/UserContext";
 import { DialogBtn } from "../../styles";
-import { Category, Task } from "../../types/user";
+import { Category, Priority, Task } from "../../types/user";
 import { formatDate, showToast, timeAgo } from "../../utils";
 import { useTheme } from "@emotion/react";
 import { ColorPalette } from "../../theme/themeConfig";
 import { CategorySelect } from "../CategorySelect";
+import { priorities } from "../../constants/priorityConstants";
 
 interface EditTaskProps {
   open: boolean;
@@ -45,7 +50,6 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
       editedTask?.description ? editedTask.description.length > DESCRIPTION_MAX_LENGTH : undefined,
     [editedTask?.description],
   );
-
   // Effect hook to update the editedTask with the selected emoji.
   useEffect(() => {
     setEditedTask((prevTask) => ({
@@ -53,17 +57,14 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
       emoji: emoji || undefined,
     }));
   }, [emoji]);
-
   // Effect hook to update the editedTask when the task prop changes.
   useEffect(() => {
     setEditedTask(task);
     setSelectedCategories(task?.category as Category[]);
   }, [task]);
-
   // Event handler for input changes in the form fields.
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
-
     // Update the editedTask state with the changed value.
     setEditedTask((prevTask) => ({
       ...(prevTask as Task),
@@ -83,6 +84,7 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
             emoji: editedTask.emoji || undefined,
             description: editedTask.description || undefined,
             deadline: editedTask.deadline || undefined,
+            priority: editedTask.priority || undefined,
             category: editedTask.category || undefined,
             lastSave: new Date(),
           };
@@ -107,14 +109,12 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
     setEditedTask(task);
     setSelectedCategories(task?.category as Category[]);
   };
-
   useEffect(() => {
     setEditedTask((prevTask) => ({
       ...(prevTask as Task),
       category: (selectedCategories as Category[]) || undefined,
     }));
   }, [selectedCategories]);
-
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (JSON.stringify(editedTask) !== JSON.stringify(task) && open) {
@@ -151,7 +151,9 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
         title="Edit Task"
         subTitle={
           editedTask?.lastSave
-            ? `Last edited ${timeAgo(new Date(editedTask.lastSave))} • ${formatDate(new Date(editedTask.lastSave))}`
+            ? `Last edited ${timeAgo(new Date(editedTask.lastSave))} • ${formatDate(
+                new Date(editedTask.lastSave),
+              )}`
             : "Edit the details of the task."
         }
         icon={<EditCalendarRounded />}
@@ -241,6 +243,26 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
             },
           }}
         />
+        <FormControl fullWidth sx={{ margin: "14px 0" }}>
+          <InputLabel>Priority</InputLabel>
+          <Select
+            value={editedTask?.priority || "None"}
+            label="Priority"
+            onChange={(e) =>
+              setEditedTask((prev) => ({
+                ...(prev as Task),
+                priority: e.target.value as Priority,
+              }))
+            }
+            sx={{ borderRadius: "16px" }}
+          >
+            {priorities.map((p) => (
+              <MenuItem key={p.level} value={p.level}>
+                {p.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
         {settings.enableCategories !== undefined && settings.enableCategories && (
           <CategorySelect
@@ -291,7 +313,6 @@ export const EditTask = ({ open, task, onClose }: EditTaskProps) => {
 };
 
 const UnstyledTextField = ({ ...props }: TextFieldProps) => <TextField fullWidth {...props} />;
-
 const StyledInput = styled(UnstyledTextField)`
   margin: 14px 0;
   & .MuiInputBase-root {
